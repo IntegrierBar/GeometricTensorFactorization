@@ -71,7 +71,6 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
                 print("Current index: " + str(n))
                 print("Calculculation time: " + str(end - start))
                 
-            
         # the reconstruction error
         approximated_X = defactorizing_CP(A_ns, X_shape)
         RE.append(tl.norm(X-approximated_X)/norm_X)
