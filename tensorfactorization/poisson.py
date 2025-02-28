@@ -6,6 +6,7 @@ This python file contains the algorithm for Poisson Family special case
 import time
 import tensorly as tl
 import numpy as np
+import torch
 import math
 from .multiplicative import defactorizing_CP
 
@@ -77,14 +78,14 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             # for now, just use 0.7 of what was used last time
             if len(step_size_modifiers[n]) > 0:
                 m = int(step_size_modifiers[n][-1] * 0.7)
-            step_size = math.pow(beta, m) * alpha
-            f = lambda A: tl.sum( tl.matmul(A, tl.transpose(khatri_rao_product)) - tl.base.unfold(X, n) * tl.log( tl.matmul(A, tl.transpose(khatri_rao_product)) )) 
+                
+            step_size = math.pow(beta, m) * alpha # initial step size
+            f = lambda A: tl.sum( tl.matmul(A, tl.transpose(khatri_rao_product)) - tl.base.unfold(X, n) * tl.log( tl.matmul(A, tl.transpose(khatri_rao_product)) ))  # lambda for function we actually want to minimize
             function_value_at_iteration = tl.sum(approximated_X_unfolded_n - tl.base.unfold(X, n) * tl.log(approximated_X_unfolded_n)) 
             gradient_at_iteration = tl.matmul(tl.ones(approximated_X_unfolded_n.shape, **tl.context(X)) - (tl.base.unfold(X, n) / approximated_X_unfolded_n) , khatri_rao_product )
-            riemanndian_gradient_at_iteration = A_ns[n] * gradient_at_iteration # The "A_ns[n] *" is the inverse of the Riemannien metric tensor matrix thing
+            riemanndian_gradient_at_iteration = A_ns[n] * gradient_at_iteration # The "A_ns[n] *" is the inverse of the Riemannian metric tensor matrix applied to the gradient, i.e. G(A)^{-1} (\nabla f)
             norm_of_rg = tl.sum(gradient_at_iteration * riemanndian_gradient_at_iteration) # TODO maybe check if this is correct!
             next_iterate =  A_ns[n] * tl.exp(-step_size * riemanndian_gradient_at_iteration)
-            # TODO get rid of just using numpy for checking for infinity, to also make use of pytorch as well.
             while is_tensor_not_finite(next_iterate) or ( function_value_at_iteration - sigma * step_size * norm_of_rg < f(next_iterate) ):
                 m += 1
                 step_size = math.pow(beta, m) * alpha
