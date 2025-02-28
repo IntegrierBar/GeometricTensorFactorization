@@ -30,7 +30,7 @@ def is_tensor_not_finite(tensor):
 
 
 
-def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, initial_A_ns=None):
+def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=False, initial_A_ns=None):
     """
     This function uses a multiplicative method to calculate a nonnegative tensor decomposition
     
@@ -41,6 +41,8 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
       max_iter: maximum number of iterations
       detailed: if false, function returns only G and the As. if true returns also all errors found during calculation 
       verbose: If True, prints additional information
+      update_approximation_everytime: If True, update approximated_X after each time a matrix factor is changed. If false, update approximated_X only after all matrixfactors have been updated
+      initial_A_ns: List of initial A_ns has to be of length X.ndim and each element has to have the correct shape (X_shape[i], F) and the same context as X
     
     Returns:
       A list of tensors approximating X 
@@ -81,7 +83,11 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             start = time.time()
             
             khatri_rao_product = tl.tenalg.khatri_rao(A_ns, skip_matrix=n)
-            approximated_X_unfolded_n = tl.matmul(A_ns[n], tl.transpose(khatri_rao_product)) # TODO consider if we want to use the same for all matrizes or update along the way
+            
+            if update_approximation_everytime:
+                approximated_X_unfolded_n = tl.matmul(A_ns[n], tl.transpose(khatri_rao_product)) # use the new approximation using the matrizes we just updated
+            else:
+                approximated_X_unfolded_n = tl.unfold(approximated_X, n) # use the approximation from the previous iteration step, not using the matrix updates calculated in this iteration
             
             ###### Step size calculation ######
             # TODO these values should be looked at more to determine which are best

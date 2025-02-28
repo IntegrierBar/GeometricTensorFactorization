@@ -91,6 +91,7 @@ def tensor_factorization_cp_multiplicative(X, F, error=1e-6, max_iter=500, detai
       max_iter: maximum number of iterations
       detailed: if false, function returns only G and the As. if true returns also all errors found during calculation 
       verbose: If True, prints additional information
+      initial_A_ns: List of initial A_ns has to be of length X.ndim and each element has to have the correct shape (X_shape[i], F) and the same context as X
     
     Returns:
       A_ns: A list of matrizes approximating X 
@@ -183,6 +184,7 @@ def tensor_factorization_cp_multiplicative_poisson(X, F, error=1e-6, max_iter=50
       max_iter: maximum number of iterations
       detailed: if false, function returns only G and the As. if true returns also all errors found during calculation 
       verbose: If True, prints additional information
+      initial_A_ns: List of initial A_ns has to be of length X.ndim and each element has to have the correct shape (X_shape[i], F) and the same context as X
     
     Returns:
       A_ns: A list of matrizes approximating X 
