@@ -92,7 +92,9 @@ def tensor_factorization_cp_multiplicative(X, F, error=1e-6, max_iter=500, detai
       verbose: If True, prints additional information
     
     Returns:
-      A list of tensors approximating X 
+      A_ns: A list of matrizes approximating X 
+      RE (optional): list of all errors during optimization. Uses quadratic/Gauss error instead of poisson error currently
+      approximated_X (optional): final approximation of X
     """
     
     N = X.ndim # get dimension of X
@@ -154,6 +156,92 @@ def tensor_factorization_cp_multiplicative(X, F, error=1e-6, max_iter=500, detai
     if detailed:
         return A_ns, RE, approximated_X
     return A_ns
+
+
+
+def tensor_factorization_cp_multiplicative_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False):
+    """
+    This function uses a multiplicative method to calculate a nonnegative tensor decomposition by minimizing the poisson error. See paper from Welling and Weber
+    
+    Args:
+      X: The tensor of dimension N we want to decompose. X \in \RR^{I_1 x ... x I_N}
+      F: The order of the apporximation
+      error: stops iteration if difference between X and approximation with decomposition changes less then this
+      max_iter: maximum number of iterations
+      detailed: if false, function returns only G and the As. if true returns also all errors found during calculation 
+      verbose: If True, prints additional information
+    
+    Returns:
+      A_ns: A list of matrizes approximating X 
+      RE (optional): list of all errors during optimization. Uses quadratic/Gauss error instead of poisson error currently
+      approximated_X (optional): final approximation of X
+    """
+    
+    N = X.ndim # get dimension of X
+    X_shape = X.shape
+    norm_X = tl.norm(X)
+    # initialize A_j with random positive values
+    A_ns = []
+    for i in range(N):
+        # we use random.random_tensor as it returns a tensor
+        A_ns.append(tl.random.random_tensor((X_shape[i], F), **tl.context(X)))
+    
+    # the reconstruction error
+    approximated_X = defactorizing_CP(A_ns, X_shape)
+        
+    RE = [tl.norm(X-approximated_X)/norm_X]
+    for _ in range(max_iter):
+        for n in range(N):
+            start = time.time()
+            Y = tl.base.unfold(X, n)
+            
+            M = tl.tenalg.khatri_rao(A_ns, skip_matrix=n)
+            
+
+            # regular * does componentwise multiplication
+            A_n_M_transposed = tl.matmul(A_ns[n], tl.transpose(M))
+            for a in range(F):
+                A_ns[n][:,a] = A_ns[n][:,a] / tl.sum(M[:,a]) * tl.dot( Y / A_n_M_transposed , M[:,a])
+                
+            
+            end = time.time()
+            if verbose:
+                print("Current index: " + str(n))
+                print("total Memory of Y: " + str(Y.size * 8 / 1e6) + "MB")
+                print("total Memory of M: " + str(M.size * 8 / 1e6) + "MB")
+                print("Calculculation time: " + str(end - start))
+                
+            
+        # the reconstruction error
+        approximated_X = defactorizing_CP(A_ns, X_shape)
+        RE.append(tl.norm(X-approximated_X)/norm_X)
+        
+        # check if we have converged
+        if abs(RE[-1] - RE[-2]) < error:
+            break
+
+    # Rescale the A_ns
+    # TODO there should be a smarter way of calculating K
+    K = []
+    for n in range(N):
+        K_j = []
+        for a in range(F):
+            sum = 0
+            for i in range(X_shape[n]):
+                sum += A_ns[n][i, a]**2
+            K_j.append(math.sqrt(sum))
+        K.append(K_j)
+    K = tl.tensor(K, **tl.context(X))
+    for n in range(N):
+        for a in range(F):
+            A_ns[n][:, a] = A_ns[n][:, a] * math.pow(tl.prod(K[:, a]), 1.0/N) / K[n, a]
+
+    if detailed:
+        return A_ns, RE, approximated_X
+    return A_ns
+
+
+
 
 
 
