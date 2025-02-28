@@ -87,9 +87,9 @@ def tensor_factorization_cp_multiplicative(X, F, error=1e-6, max_iter=500, detai
     Args:
       X: The tensor of dimension N we want to decompose. X \in \RR^{I_1 x ... x I_N}
       F: The order of the apporximation
-      error: stops iteration if difference between X and approximation with decomposition changes less then this
+      error: stops iteration if normed difference between X and approximation changes less then this number
       max_iter: maximum number of iterations
-      detailed: if false, function returns only G and the As. if true returns also all errors found during calculation 
+      detailed: if false, function returns only G and the As. if true returns also all errors found during calculation and final approximation
       verbose: If True, prints additional information
       initial_A_ns: List of initial A_ns has to be of length X.ndim and each element has to have the correct shape (X_shape[i], F) and the same context as X
     
@@ -180,9 +180,9 @@ def tensor_factorization_cp_multiplicative_poisson(X, F, error=1e-6, max_iter=50
     Args:
       X: The tensor of dimension N we want to decompose. X \in \RR^{I_1 x ... x I_N}
       F: The order of the apporximation
-      error: stops iteration if difference between X and approximation with decomposition changes less then this
+      error: stops iteration if normed difference between X and approximation changes less then this number
       max_iter: maximum number of iterations
-      detailed: if false, function returns only G and the As. if true returns also all errors found during calculation 
+      detailed: if false, function returns only G and the As. if true returns also all errors found during calculation and final approximation
       verbose: If True, prints additional information
       initial_A_ns: List of initial A_ns has to be of length X.ndim and each element has to have the correct shape (X_shape[i], F) and the same context as X
     

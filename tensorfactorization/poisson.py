@@ -37,15 +37,18 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
     Args:
       X: The tensor of dimension N we want to decompose. X \in \RR^{I_1 x ... x I_N}
       F: The order of the apporximation
-      error: stops iteration if difference between X and approximation with decomposition changes less then this
+      error: stops iteration if normed difference between X and approximation changes less then this number
       max_iter: maximum number of iterations
-      detailed: if false, function returns only G and the As. if true returns also all errors found during calculation 
+      detailed: if false, function returns only G and the As. if true returns also all errors found during calculation, final approximation and all step size modifiers
       verbose: If True, prints additional information
       update_approximation_everytime: If True, update approximated_X after each time a matrix factor is changed. If false, update approximated_X only after all matrixfactors have been updated
       initial_A_ns: List of initial A_ns has to be of length X.ndim and each element has to have the correct shape (X_shape[i], F) and the same context as X
     
     Returns:
-      A list of tensors approximating X 
+      A_ns: A list of matrizes approximating X 
+      RE (optional): list of all errors during optimization. Uses quadratic/Gauss error instead of poisson error currently
+      approximated_X (optional): final approximation of X
+      step_size_modifiers (optional): list of all step-size-modifiers m used during iteration
     """
     
     N = X.ndim # get dimension of X
@@ -105,7 +108,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             gradient_at_iteration = tl.matmul(tl.ones(approximated_X_unfolded_n.shape, **tl.context(X)) - (tl.base.unfold(X, n) / approximated_X_unfolded_n) , khatri_rao_product )
             riemanndian_gradient_at_iteration = A_ns[n] * gradient_at_iteration # The "A_ns[n] *" is the inverse of the Riemannian metric tensor matrix applied to the gradient, i.e. G(A)^{-1} (\nabla f)
             norm_of_rg = tl.sum(gradient_at_iteration * riemanndian_gradient_at_iteration) # TODO maybe check if this is correct! But it should be since we calculate the Riemmannian norm of the Riemannian gradient as \| grad f \|_g = (G^{-1} \nabla f)^T G G^{-1} \nabla f = \nabla f^T grad f
-            next_iterate =  A_ns[n] * tl.exp(-step_size * riemanndian_gradient_at_iteration)
+            next_iterate =  A_ns[n] * tl.exp(-step_size * gradient_at_iteration)
             # if Armijo step size condition is not fullfilled, try again with smaller step size. Thanks to math, this is while loop will eventually finish
             while is_tensor_not_finite(next_iterate) or ( function_value_at_iteration - sigma * step_size * norm_of_rg < f(next_iterate) ):
                 m += 1
@@ -128,6 +131,8 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
 
                 print("function_value_at_iteration = " + str(function_value_at_iteration))
                 print("norm_of_rg = " + str(norm_of_rg))
+                print("largest Element in gradient = " + str(tl.max(tl.abs(gradient_at_iteration))))
+                print("biggest Element of X/M = " + str(tl.max(tl.abs(tl.base.unfold(X, n) / approximated_X_unfolded_n))))
                 print("gradiend_at_iteration = ")
                 print(gradient_at_iteration)
                 print("riemannian_gradient_at_iteration = ")
