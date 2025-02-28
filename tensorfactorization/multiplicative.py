@@ -10,6 +10,7 @@ import tensorly as tl
 import numpy as np
 import math
 
+from copy import deepcopy
 
 # This version is deprecated as the one below is twice as fast
 def defactorizing_CP_old(A_js, F, N, X_shape):
@@ -79,7 +80,7 @@ def multiply_varying_matrices(A_list):
 
 
 
-def tensor_factorization_cp_multiplicative(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False):
+def tensor_factorization_cp_multiplicative(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, initial_A_ns=None):
     """
     This function uses a multiplicative method to calculate a nonnegative tensor decomposition
     
@@ -101,10 +102,22 @@ def tensor_factorization_cp_multiplicative(X, F, error=1e-6, max_iter=500, detai
     X_shape = X.shape
     norm_X = tl.norm(X)
     # initialize A_j with random positive values
-    A_ns = []
-    for i in range(N):
-        # we use random.random_tensor as it returns a tensor
-        A_ns.append(tl.random.random_tensor((X_shape[i], F), **tl.context(X)))
+    # initialize A_j with random positive values if it was not given
+    # TODO could consider adding checks if initial A_ns are given
+    if initial_A_ns is None:
+        A_ns = []
+        for i in range(N):
+            # we use random.random_tensor as it returns a tensor
+            A_ns.append(tl.random.random_tensor((X_shape[i], F), **tl.context(X)))
+    else:
+        if len(initial_A_ns) != N:
+            raise ValueError("initial A_ns given does not have to correct length")
+        for i in range(N):
+            if initial_A_ns[i].shape != (X_shape[i], F):
+                raise ValueError("inital A_ns with index " + str(i) + " does not have correct dimension. Should be " + str((X_shape[i], F)) + " but is " + str(initial_A_ns[i].shape))
+            if tl.context(initial_A_ns[i]) != tl.context(X):
+                raise ValueError("inital A_ns with index " + str(i) + " does not have the same context as X. Should be " + str(tl.context(X)) + " but is " + str(tl.context(initial_A_ns[i])))
+        A_ns = deepcopy(initial_A_ns) # use copy since that is how we want to later use it for testing
     
     # the reconstruction error
     approximated_X = defactorizing_CP(A_ns, X_shape)
@@ -159,7 +172,7 @@ def tensor_factorization_cp_multiplicative(X, F, error=1e-6, max_iter=500, detai
 
 
 
-def tensor_factorization_cp_multiplicative_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False):
+def tensor_factorization_cp_multiplicative_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, initial_A_ns=None):
     """
     This function uses a multiplicative method to calculate a nonnegative tensor decomposition by minimizing the poisson error. See paper from Welling and Weber
     
@@ -180,11 +193,21 @@ def tensor_factorization_cp_multiplicative_poisson(X, F, error=1e-6, max_iter=50
     N = X.ndim # get dimension of X
     X_shape = X.shape
     norm_X = tl.norm(X)
-    # initialize A_j with random positive values
-    A_ns = []
-    for i in range(N):
-        # we use random.random_tensor as it returns a tensor
-        A_ns.append(tl.random.random_tensor((X_shape[i], F), **tl.context(X)))
+    # initialize A_j with random positive values if it was not given
+    if initial_A_ns is None:
+        A_ns = []
+        for i in range(N):
+            # we use random.random_tensor as it returns a tensor
+            A_ns.append(tl.random.random_tensor((X_shape[i], F), **tl.context(X)))
+    else:
+        if len(initial_A_ns) != N:
+            raise ValueError("initial A_ns given does not have to correct length")
+        for i in range(N):
+            if initial_A_ns[i].shape != (X_shape[i], F):
+                raise ValueError("inital A_ns with index " + str(i) + " does not have correct dimension. Should be " + str((X_shape[i], F)) + " but is " + str(initial_A_ns[i].shape))
+            if tl.context(initial_A_ns[i]) != tl.context(X):
+                raise ValueError("inital A_ns with index " + str(i) + " does not have the same context as X. Should be " + str(tl.context(X)) + " but is " + str(tl.context(initial_A_ns[i])))
+        A_ns = deepcopy(initial_A_ns) # use copy since that is how we want to later use it for testing
     
     # the reconstruction error
     approximated_X = defactorizing_CP(A_ns, X_shape)

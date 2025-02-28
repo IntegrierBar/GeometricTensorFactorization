@@ -10,6 +10,8 @@ import torch
 import math
 from .multiplicative import defactorizing_CP
 
+from copy import deepcopy
+
 
 def is_tensor_not_finite(tensor):
     """
@@ -28,7 +30,7 @@ def is_tensor_not_finite(tensor):
 
 
 
-def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False):
+def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, initial_A_ns=None):
     """
     This function uses a multiplicative method to calculate a nonnegative tensor decomposition
     
@@ -47,11 +49,21 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
     N = X.ndim # get dimension of X
     X_shape = X.shape
     norm_X = tl.norm(X)
-    # initialize A_j with random positive values
-    A_ns = []
-    for i in range(N):
-        # we use random.random_tensor as it returns a tensor
-        A_ns.append(tl.random.random_tensor((X_shape[i], F), **tl.context(X)))
+    # initialize A_j with random positive values if it was not given
+    if initial_A_ns is None:
+        A_ns = []
+        for i in range(N):
+            # we use random.random_tensor as it returns a tensor
+            A_ns.append(tl.random.random_tensor((X_shape[i], F), **tl.context(X)))
+    else:
+        if len(initial_A_ns) != N:
+            raise ValueError("initial A_ns given does not have to correct length")
+        for i in range(N):
+            if initial_A_ns[i].shape != (X_shape[i], F):
+                raise ValueError("inital A_ns with index " + str(i) + " does not have correct dimension. Should be " + str((X_shape[i], F)) + " but is " + str(initial_A_ns[i].shape))
+            if tl.context(initial_A_ns[i]) != tl.context(X):
+                raise ValueError("inital A_ns with index " + str(i) + " does not have the same context as X. Should be " + str(tl.context(X)) + " but is " + str(tl.context(initial_A_ns[i])))
+        A_ns = deepcopy(initial_A_ns) # use copy since that is how we want to later use it for testing
     
     # the reconstruction error
     approximated_X = defactorizing_CP(A_ns, X_shape)
@@ -62,6 +74,8 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
     step_size_modifiers = []
     for i in range(N):
         step_size_modifiers.append([])
+        
+    ## MAIN LOOP ##
     for _ in range(max_iter):
         for n in range(N):
             start = time.time()
@@ -84,17 +98,18 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             function_value_at_iteration = tl.sum(approximated_X_unfolded_n - tl.base.unfold(X, n) * tl.log(approximated_X_unfolded_n)) 
             gradient_at_iteration = tl.matmul(tl.ones(approximated_X_unfolded_n.shape, **tl.context(X)) - (tl.base.unfold(X, n) / approximated_X_unfolded_n) , khatri_rao_product )
             riemanndian_gradient_at_iteration = A_ns[n] * gradient_at_iteration # The "A_ns[n] *" is the inverse of the Riemannian metric tensor matrix applied to the gradient, i.e. G(A)^{-1} (\nabla f)
-            norm_of_rg = tl.sum(gradient_at_iteration * riemanndian_gradient_at_iteration) # TODO maybe check if this is correct!
+            norm_of_rg = tl.sum(gradient_at_iteration * riemanndian_gradient_at_iteration) # TODO maybe check if this is correct! But it should be since we calculate the Riemmannian norm of the Riemannian gradient as \| grad f \|_g = (G^{-1} \nabla f)^T G G^{-1} \nabla f = \nabla f^T grad f
             next_iterate =  A_ns[n] * tl.exp(-step_size * riemanndian_gradient_at_iteration)
+            # if Armijo step size condition is not fullfilled, try again with smaller step size. Thanks to math, this is while loop will eventually finish
             while is_tensor_not_finite(next_iterate) or ( function_value_at_iteration - sigma * step_size * norm_of_rg < f(next_iterate) ):
                 m += 1
                 step_size = math.pow(beta, m) * alpha
                 next_iterate =  A_ns[n] * tl.exp(-step_size * gradient_at_iteration)
             
             step_size_modifiers[n].append(m) # save the value of m for later inspection
-            ###### update A_ns[n]
+            # finally update A_n
             A_ns[n] = next_iterate
-            # OLD CODE, kept for safety
+            # OLD CODE, kept for safety, but can be deleted
             # regular * does componentwise multiplication
             #A_ns[n] = A_ns[n] * tl.exp(-step_size * tl.matmul(tl.ones(approximated_X_unfolded_n.shape) - (tl.base.unfold(X, n) / approximated_X_unfolded_n) , khatri_rao_product )  ) 
             
