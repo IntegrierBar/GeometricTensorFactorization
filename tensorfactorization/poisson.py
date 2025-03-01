@@ -109,11 +109,16 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             riemanndian_gradient_at_iteration = A_ns[n] * gradient_at_iteration # The "A_ns[n] *" is the inverse of the Riemannian metric tensor matrix applied to the gradient, i.e. G(A)^{-1} (\nabla f)
             norm_of_rg = tl.sum(gradient_at_iteration * riemanndian_gradient_at_iteration) # TODO maybe check if this is correct! But it should be since we calculate the Riemmannian norm of the Riemannian gradient as \| grad f \|_g = (G^{-1} \nabla f)^T G G^{-1} \nabla f = \nabla f^T grad f
             next_iterate =  A_ns[n] * tl.exp(-step_size * gradient_at_iteration)
+            if verbose:
+                print("Time from start to calculate gradients and first next iterate: " + str(time.time() - start))
             # if Armijo step size condition is not fullfilled, try again with smaller step size. Thanks to math, this is while loop will eventually finish
             while is_tensor_not_finite(next_iterate) or ( function_value_at_iteration - sigma * step_size * norm_of_rg < f(next_iterate) ):
+                # TODO: instead of recalculating like this, we can also use (for beta=0.5) that exp(beta * stuff) = [exp(stuff)]^beta and if beta=0.5 this is just sqrt which is 3 times faster
                 m += 1
                 step_size = math.pow(beta, m) * alpha
                 next_iterate =  A_ns[n] * tl.exp(-step_size * gradient_at_iteration)
+            if verbose:
+                print("Time from start until end of step size calculation: " + str(time.time() - start))
             
             step_size_modifiers[n].append(m) # save the value of m for later inspection
             # finally update A_n
