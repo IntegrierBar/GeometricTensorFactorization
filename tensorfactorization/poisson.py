@@ -30,7 +30,7 @@ def is_tensor_not_finite(tensor):
 
 
 
-def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=False, initial_A_ns=None):
+def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=True, initial_A_ns=None):
     """
     This function uses a multiplicative method to calculate a nonnegative tensor decomposition
     
@@ -97,7 +97,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             sigma = 0.5
             beta = 0.5
             alpha = 0.5
-            m = 0 # TODO need to find some estimation for first m! otherwise need to compute too much
+            m = 0 # TODO need to find some estimation for first m! otherwise need to compute too much, at least add test for finiteness first!
             # for now, just use 0.7 of what was used last time
             if len(step_size_modifiers[n]) > 0:
                 m = int(step_size_modifiers[n][-1] * 0.7)
