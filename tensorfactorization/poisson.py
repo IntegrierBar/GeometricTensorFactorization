@@ -83,6 +83,9 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
     ## MAIN LOOP ##
     for _ in range(max_iter):
         for n in range(N):
+            if verbose:
+                print("Current index: " + str(n))
+                
             start = time.time()
             
             khatri_rao_product = tl.tenalg.khatri_rao(A_ns, skip_matrix=n)
@@ -101,6 +104,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             # for now, just use 0.7 of what was used last time
             if len(step_size_modifiers[n]) > 0:
                 m = int(step_size_modifiers[n][-1] * 0.7)
+                # TODO seems like we want to make sure that step_size * max(-grad) < 10
                 
             step_size = math.pow(beta, m) * alpha # initial step size
             f = lambda A: tl.sum( tl.matmul(A, tl.transpose(khatri_rao_product)) - tl.base.unfold(X, n) * tl.log( tl.matmul(A, tl.transpose(khatri_rao_product)) ))  # lambda for function we actually want to minimize
@@ -119,6 +123,15 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
                 next_iterate =  A_ns[n] * tl.exp(-step_size * gradient_at_iteration)
             if verbose:
                 print("Time from start until end of step size calculation: " + str(time.time() - start))
+                print("Biggest element in -gradient: " + str(tl.max(-gradient_at_iteration)))
+                print("smallest element in -gradient: " + str(tl.min(-gradient_at_iteration)))
+                print("Step Size: " + str(step_size))
+                print("m: " + str(m))
+                print("Step size * biggest element: " + str(step_size * tl.max(-gradient_at_iteration)))
+                print("biggest element in A_n: " + str(tl.max(A_ns[n])))
+                print("smallest element in A_n: " + str(tl.min(A_ns[n])))
+                print("Shape of approximated_X_unfolded_n: " + str(approximated_X_unfolded_n.shape))
+                print("Shape of khatri Rao product: " + str(khatri_rao_product.shape))
             
             step_size_modifiers[n].append(m) # save the value of m for later inspection
             # finally update A_n
@@ -129,22 +142,20 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             
             end = time.time()
             if verbose:
-                print("Current index: " + str(n))
                 print("Calculculation time: " + str(end - start))
                 print("New objective function value: " + str(f(A_ns[n])))
-                print("step size was: " + str(step_size) + " with m = " + str(m))
 
                 print("function_value_at_iteration = " + str(function_value_at_iteration))
                 print("norm_of_rg = " + str(norm_of_rg))
-                print("largest Element in gradient = " + str(tl.max(tl.abs(gradient_at_iteration))))
                 print("biggest Element of X/M = " + str(tl.max(tl.abs(tl.base.unfold(X, n) / approximated_X_unfolded_n))))
-                print("gradiend_at_iteration = ")
-                print(gradient_at_iteration)
-                print("riemannian_gradient_at_iteration = ")
-                print(riemanndian_gradient_at_iteration)
+                #print("gradiend_at_iteration = ")
+                #print(gradient_at_iteration)
+                #print("riemannian_gradient_at_iteration = ")
+                #print(riemanndian_gradient_at_iteration)
 
-                print("new A_ns[n]:")
-                print(A_ns[n])
+                #print("new A_ns[n]:")
+                #print(A_ns[n])
+                print("\n")
                 
                 
             
