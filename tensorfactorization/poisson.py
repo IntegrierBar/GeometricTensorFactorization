@@ -30,7 +30,7 @@ def is_tensor_not_finite(tensor):
 
 
 
-def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=True, initial_A_ns=None):
+def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=True, initial_A_ns=None, sigma=0.5):
     """
     This function uses a multiplicative method to calculate a nonnegative tensor decomposition
     
@@ -97,7 +97,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             
             ###### Step size calculation ######
             # TODO these values should be looked at more to determine which are best
-            sigma = 0.5
+            #sigma = 0.5
             beta = 0.5
             alpha = 0.5
             m = 0 # TODO need to find some estimation for first m! otherwise need to compute too much, at least add test for finiteness first!
@@ -247,7 +247,8 @@ def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=5
     step_size_modifiers = []
     for i in range(N):
         step_size_modifiers.append([])
-        
+    
+    step_size_modifier = 1.0
     ## MAIN LOOP ##
     for _ in range(max_iter):
         for n in range(N):
@@ -273,10 +274,12 @@ def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=5
             riemanndian_gradient_at_iteration = A_ns[n] * gradient_at_iteration # The "A_ns[n] *" is the inverse of the Riemannian metric tensor matrix applied to the gradient, i.e. G(A)^{-1} (\nabla f)
             norm_of_rg = tl.sum(gradient_at_iteration * riemanndian_gradient_at_iteration) # TODO maybe check if this is correct! But it should be since we calculate the Riemmannian norm of the Riemannian gradient as \| grad f \|_g = (G^{-1} \nabla f)^T G G^{-1} \nabla f = \nabla f^T grad f
             
-            step_size = 5.0 / khatri_rao_product.shape[0] # fixed step size according to my estimates
+            
+            step_size = 4.0 * math.pow(khatri_rao_product.shape[0], -1) # fixed step size according to my estimates
             # still need to make sure we donÄt get problem in first iteration so we need to ensure that in the exponent there is nothing bigger then 10!
             largest_element_gradient = -tl.min(gradient_at_iteration)
             step_size = min(step_size, 2.0 / largest_element_gradient)
+            step_size_modifier = min(step_size_modifier + 0.5, 3.0)
             
             next_iterate =  A_ns[n] * tl.exp(-step_size * gradient_at_iteration)
             if verbose:
