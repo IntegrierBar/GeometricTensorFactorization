@@ -128,9 +128,11 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
                 # TODO seems like we want to make sure that step_size * max(-grad) < 10
             else:
                 m = 0
-                
+            
+            # TODO here is a massive problem. For some reason if our tensor is outside [0,1] we get problems because function_value_at_iteration can be negative?
             # For first few iterations norm_of_rg is larger then function_value_at_iteration. And since we need function_value_at_iteration - sigma*step_size*norm_of_rg > f(next_iteration) > 0, we need to choose initial m such that norm_of_rg is less then f(current_iterate)
-            m = max(math.ceil(math.log(function_value_at_iteration / (sigma * alpha * norm_of_rg), beta)), m)
+            #print(function_value_at_iteration)
+            #m = max(math.ceil(math.log(function_value_at_iteration / (sigma * alpha * norm_of_rg), beta)), m)
             if verbose:
                 print("Initial m = " + str(m))
                 print(math.log(function_value_at_iteration / (sigma * alpha * norm_of_rg)))
