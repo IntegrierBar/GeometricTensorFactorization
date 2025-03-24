@@ -144,7 +144,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
                 print("Time from start to calculate gradients and first next iterate: " + str(time.time() - start))
             # if Armijo step size condition is not fullfilled, try again with smaller step size. Thanks to math, this is while loop will eventually finish
             while is_tensor_not_finite(next_iterate) or ( function_value_at_iteration - sigma * step_size * norm_of_rg < poisson_error( tl.base.unfold(X, n), tl.matmul(next_iterate, tl.transpose(khatri_rao_product)) ) ):
-                # TODO: instead of recalculating like this, we can also use (for beta=0.5) that exp(beta * stuff) = [exp(stuff)]^beta and if beta=0.5 this is just sqrt which is 3 times faster
+                # TODO: instead of recalculating like this, we can also use (for beta=0.5) that exp(beta * stuff) = [exp(stuff)]^beta and if beta=0.5 this is just sqrt which is 3 times faster then recalculating exp. NOT WORTH IT
                 m += 1
                 step_size = math.pow(beta, m) * alpha
                 next_iterate =  A_ns[n] * tl.exp(-step_size * gradient_at_iteration)
@@ -290,13 +290,15 @@ def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=5
                 approximated_X_unfolded_n = tl.matmul(A_ns[n], tl.transpose(khatri_rao_product)) # use the new approximation using the matrizes we just updated
             else:
                 approximated_X_unfolded_n = tl.unfold(approximated_X, n) # use the approximation from the previous iteration step, not using the matrix updates calculated in this iteration
-            
+            # TODO consider changig approximated_X_unfolded_n such that all 0 elements are set to epsilon, i.e.
+            # approximated_X_unfolded_n[approximated_X_unfolded_n==0] = eps
+            # And maybe to the same with X?
             
                 
             
             
-            f = lambda A: tl.sum( tl.matmul(A, tl.transpose(khatri_rao_product)) - tl.base.unfold(X, n) * tl.log( tl.matmul(A, tl.transpose(khatri_rao_product)) ))  # lambda for function we actually want to minimize
-            function_value_at_iteration = tl.sum(approximated_X_unfolded_n - tl.base.unfold(X, n) * tl.log(approximated_X_unfolded_n)) 
+            #f = lambda A: tl.sum( tl.matmul(A, tl.transpose(khatri_rao_product)) - tl.base.unfold(X, n) * tl.log( tl.matmul(A, tl.transpose(khatri_rao_product)) ))  # lambda for function we actually want to minimize
+            #function_value_at_iteration = tl.sum(approximated_X_unfolded_n - tl.base.unfold(X, n) * tl.log(approximated_X_unfolded_n)) 
             gradient_at_iteration = tl.matmul(tl.ones(approximated_X_unfolded_n.shape, **tl.context(X)) - (tl.base.unfold(X, n) / approximated_X_unfolded_n) , khatri_rao_product )
             riemanndian_gradient_at_iteration = A_ns[n] * gradient_at_iteration # The "A_ns[n] *" is the inverse of the Riemannian metric tensor matrix applied to the gradient, i.e. G(A)^{-1} (\nabla f)
             norm_of_rg = tl.sum(gradient_at_iteration * riemanndian_gradient_at_iteration) # TODO maybe check if this is correct! But it should be since we calculate the Riemmannian norm of the Riemannian gradient as \| grad f \|_g = (G^{-1} \nabla f)^T G G^{-1} \nabla f = \nabla f^T grad f
@@ -339,9 +341,9 @@ def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=5
             end = time.time()
             if verbose:
                 print("Calculculation time: " + str(end - start))
-                print("New objective function value: " + str(f(A_ns[n])))
+                #print("New objective function value: " + str(f(A_ns[n]))) # TODO fix the prints here
 
-                print("function_value_at_iteration = " + str(function_value_at_iteration))
+                #print("function_value_at_iteration = " + str(function_value_at_iteration))
                 print("norm_of_rg = " + str(norm_of_rg))
                 print("biggest Element of X/M = " + str(tl.max(tl.abs(tl.base.unfold(X, n) / approximated_X_unfolded_n))))
                 #print("gradiend_at_iteration = ")
