@@ -12,6 +12,8 @@ from .multiplicative import defactorizing_CP
 
 from copy import deepcopy
 
+import warnings
+
 
 def is_tensor_not_finite(tensor):
     """
@@ -41,7 +43,7 @@ def poisson_error(X_unfolded_n, M_unfolded_n):
 
 
 
-def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=True, initial_A_ns=None, sigma=0.5, beta=0.5):
+def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=True, initial_A_ns=None, sigma=0.5, beta=0.5, eps=1e-6):
     """
     This function uses a multiplicative method to calculate a nonnegative tensor decomposition
     
@@ -54,6 +56,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
       verbose: If True, prints additional information
       update_approximation_everytime: If True, update approximated_X after each time a matrix factor is changed. If false, update approximated_X only after all matrixfactors have been updated
       initial_A_ns: List of initial A_ns has to be of length X.ndim and each element has to have the correct shape (X_shape[i], F) and the same context as X
+      eps: all values lower than this value are lifted to this value
     
     Returns:
       A_ns: A list of matrizes approximating X 
@@ -61,6 +64,9 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
       approximated_X (optional): final approximation of X
       step_size_modifiers (optional): list of all step-size-modifiers m used during iteration
     """
+    
+    # first of all we clamp X to eps so we do not get problems due to machine precission
+    X[X<eps] = 1e-6
     
     N = X.ndim # get dimension of X
     X_shape = X.shape
@@ -80,7 +86,6 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             if tl.context(initial_A_ns[i]) != tl.context(X):
                 raise ValueError("inital A_ns with index " + str(i) + " does not have the same context as X. Should be " + str(tl.context(X)) + " but is " + str(tl.context(initial_A_ns[i])))
         A_ns = deepcopy(initial_A_ns) # use copy since that is how we want to later use it for testing
-    
     # the reconstruction error
     approximated_X = defactorizing_CP(A_ns, X_shape)
         
@@ -92,7 +97,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
         step_size_modifiers.append([])
         
     ## MAIN LOOP ##
-    for _ in range(max_iter):
+    for iteration in range(max_iter):
         for n in range(N):
             if verbose:
                 print("Current index: " + str(n))
@@ -106,6 +111,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             else:
                 approximated_X_unfolded_n = tl.unfold(approximated_X, n) # use the approximation from the previous iteration step, not using the matrix updates calculated in this iteration
             
+            approximated_X_unfolded_n[approximated_X_unfolded_n<eps] = 1e-6
             
             #f = lambda A: tl.sum( tl.matmul(A, tl.transpose(khatri_rao_product)) - tl.base.unfold(X, n) * tl.log( tl.matmul(A, tl.transpose(khatri_rao_product)) ))  # lambda for function we actually want to minimize
             function_value_at_iteration = poisson_error(tl.base.unfold(X, n), approximated_X_unfolded_n) #tl.sum(approximated_X_unfolded_n - tl.base.unfold(X, n) * tl.log(approximated_X_unfolded_n)) 
@@ -128,6 +134,11 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
                 # TODO seems like we want to make sure that step_size * max(-grad) < 10
             else:
                 m = 0
+            # first we make sure that the step size is small enough that we do not get any numerical problems with exp (exp(700)=infty)
+            # TODO need to make this smarter for better speed
+            biggest_negative_element_grad = max(0, -tl.min(gradient_at_iteration))
+            while alpha * math.pow(beta, m) * biggest_negative_element_grad > 600:
+                m += 1
             
             # TODO here is a massive problem. For some reason if our tensor is outside [0,1] we get problems because function_value_at_iteration can be negative?
             # For first few iterations norm_of_rg is larger then function_value_at_iteration. And since we need function_value_at_iteration - sigma*step_size*norm_of_rg > f(next_iteration) > 0, we need to choose initial m such that norm_of_rg is less then f(current_iterate)
@@ -135,23 +146,55 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             #m = max(math.ceil(math.log(function_value_at_iteration / (sigma * alpha * norm_of_rg), beta)), m)
             if verbose:
                 print("Initial m = " + str(m))
-                print(math.log(function_value_at_iteration / (sigma * alpha * norm_of_rg)))
-                print(math.log(beta))
+                print("Biggest element in -gradient: " + str(tl.max(-gradient_at_iteration)))
+                print("smallest element in -gradient: " + str(tl.min(-gradient_at_iteration)))
+                #print(math.log(function_value_at_iteration / (sigma * alpha * norm_of_rg)))
+                #print(math.log(beta))
                 
             step_size = math.pow(beta, m) * alpha # initial step size
             next_iterate =  A_ns[n] * tl.exp(-step_size * gradient_at_iteration)
             if verbose:
                 print("Time from start to calculate gradients and first next iterate: " + str(time.time() - start))
+                
             # if Armijo step size condition is not fullfilled, try again with smaller step size. Thanks to math, this is while loop will eventually finish
+            n_backtracks = 0 # how many backtrackings we did
             while is_tensor_not_finite(next_iterate) or ( function_value_at_iteration - sigma * step_size * norm_of_rg < poisson_error( tl.base.unfold(X, n), tl.matmul(next_iterate, tl.transpose(khatri_rao_product)) ) ):
                 # TODO: instead of recalculating like this, we can also use (for beta=0.5) that exp(beta * stuff) = [exp(stuff)]^beta and if beta=0.5 this is just sqrt which is 3 times faster then recalculating exp. NOT WORTH IT
+                # if we need more than 200 backtracks something is wrong and we give a warning and skip this update
+                n_backtracks += 1
+                if n_backtracks > 200:
+                    warnings.warn("Backtracking did not converge in time so we skip this update.")
+                    print("#### PRINTING ADDITIONAL INFORMATION ####")
+                    print("Current iteration: " + str(iteration))
+                    print("Current index: " + str(n))
+                    print("Step Size: " + str(step_size))
+                    print("m: " + str(m))
+                    print("Step size * biggest element of negative gradient: " + str(step_size * tl.max(-gradient_at_iteration)))
+                    print("biggest element in A_n: " + str(tl.max(A_ns[n])))
+                    print("smallest element in A_n: " + str(tl.min(A_ns[n])))
+                    print("Shape of approximated_X_unfolded_n: " + str(approximated_X_unfolded_n.shape))
+                    print("Shape of khatri Rao product: " + str(khatri_rao_product.shape))
+                    print("\nPoisson error of current iteration: " + str(function_value_at_iteration))
+                    print("norm of Riemannian Gradient: " + str(norm_of_rg))
+                    print("poisson error of next iteration: " + str(poisson_error( tl.base.unfold(X, n), tl.matmul(next_iterate, tl.transpose(khatri_rao_product)) )))
+                    print("GRADIENT: smallest element: " + str(tl.min(gradient_at_iteration)) + " biggest element: " + str(tl.max(gradient_at_iteration)))
+                    print("NEXT ITERATE: smallest element: " + str(tl.min(next_iterate)) + " biggest element: " + str(tl.max(next_iterate)))
+                    print("KHATRI RAO PRODUCT: smallest element: " + str(tl.min(khatri_rao_product)) + " biggest element: " + str(tl.max(khatri_rao_product)))
+                    print("APPROXIMATED X: smallest element: " + str(tl.min(approximated_X_unfolded_n)) + " biggest element: " + str(tl.max(approximated_X_unfolded_n)))
+                    for index, A_n in enumerate(A_ns):
+                        print("A_ns["+str(index)+"]: smallest element: " + str(tl.min(A_n)) + " biggest element: " + str(tl.max(A_n)))
+                    print("\n")
+                    break
+                
                 m += 1
                 step_size = math.pow(beta, m) * alpha
                 next_iterate =  A_ns[n] * tl.exp(-step_size * gradient_at_iteration)
+            # if the backtracking did not converge we skip the update
+            if n_backtracks > 200:
+                continue
+            
             if verbose:
                 print("Time from start until end of step size calculation: " + str(time.time() - start))
-                print("Biggest element in -gradient: " + str(tl.max(-gradient_at_iteration)))
-                print("smallest element in -gradient: " + str(tl.min(-gradient_at_iteration)))
                 print("Step Size: " + str(step_size))
                 print("m: " + str(m))
                 print("Step size * biggest element: " + str(step_size * tl.max(-gradient_at_iteration)))
