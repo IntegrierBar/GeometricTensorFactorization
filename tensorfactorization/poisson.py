@@ -43,7 +43,7 @@ def poisson_error(X_unfolded_n, M_unfolded_n):
 
 
 
-def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=True, initial_A_ns=None, sigma=0.5, beta=0.5, eps=1e-6):
+def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=True, initial_A_ns=None, sigma=0.5, beta=0.5, eps=None):
     """
     This function uses a multiplicative method to calculate a nonnegative tensor decomposition
     
@@ -64,9 +64,12 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
       approximated_X (optional): final approximation of X
       step_size_modifiers (optional): list of all step-size-modifiers m used during iteration
     """
+    # if no eps was specified, we use the machine epsilon for float32 (smallest number s.t. 1+eps>1)
+    if eps==None:
+        eps = tl.eps(tl.float32)
     
     # first of all we clamp X to eps so we do not get problems due to machine precission
-    X[X<eps] = 1e-6
+    X[X<eps] = eps
     
     N = X.ndim # get dimension of X
     X_shape = X.shape
@@ -111,7 +114,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             else:
                 approximated_X_unfolded_n = tl.unfold(approximated_X, n) # use the approximation from the previous iteration step, not using the matrix updates calculated in this iteration
             
-            approximated_X_unfolded_n[approximated_X_unfolded_n<eps] = 1e-6
+            approximated_X_unfolded_n[approximated_X_unfolded_n<eps] = eps
             
             #f = lambda A: tl.sum( tl.matmul(A, tl.transpose(khatri_rao_product)) - tl.base.unfold(X, n) * tl.log( tl.matmul(A, tl.transpose(khatri_rao_product)) ))  # lambda for function we actually want to minimize
             function_value_at_iteration = poisson_error(tl.base.unfold(X, n), approximated_X_unfolded_n) #tl.sum(approximated_X_unfolded_n - tl.base.unfold(X, n) * tl.log(approximated_X_unfolded_n)) 
@@ -177,12 +180,24 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
                     print("\nPoisson error of current iteration: " + str(function_value_at_iteration))
                     print("norm of Riemannian Gradient: " + str(norm_of_rg))
                     print("poisson error of next iteration: " + str(poisson_error( tl.base.unfold(X, n), tl.matmul(next_iterate, tl.transpose(khatri_rao_product)) )))
-                    print("GRADIENT: smallest element: " + str(tl.min(gradient_at_iteration)) + " biggest element: " + str(tl.max(gradient_at_iteration)))
-                    print("NEXT ITERATE: smallest element: " + str(tl.min(next_iterate)) + " biggest element: " + str(tl.max(next_iterate)))
-                    print("KHATRI RAO PRODUCT: smallest element: " + str(tl.min(khatri_rao_product)) + " biggest element: " + str(tl.max(khatri_rao_product)))
-                    print("APPROXIMATED X: smallest element: " + str(tl.min(approximated_X_unfolded_n)) + " biggest element: " + str(tl.max(approximated_X_unfolded_n)))
+                    print("\nPrinting additional tensor information")
+                    tensors_to_print = {
+                        "TENSOR" : X,
+                        "GRADIENT" : gradient_at_iteration,
+                        "NEXT ITERATE" : next_iterate,
+                        "KHATRI RAO PRODUCT" : khatri_rao_product,
+                        "APPROXIMATED X" : approximated_X_unfolded_n,
+                    }
                     for index, A_n in enumerate(A_ns):
-                        print("A_ns["+str(index)+"]: smallest element: " + str(tl.min(A_n)) + " biggest element: " + str(tl.max(A_n)))
+                        tensors_to_print["A_ns["+str(index)+"]"] = A_n
+                    
+                    for name, tensor_to_print in tensors_to_print.items():
+                        print(name + ": smallest: " + str(tl.min(tensor_to_print)) + ", biggest: " + str(tl.max(tensor_to_print)) + ", average: " + str(tl.mean(tensor_to_print)))
+                    #print("NEXT ITERATE: smallest element: " + str(tl.min(next_iterate)) + " biggest element: " + str(tl.max(next_iterate)))
+                    #print("KHATRI RAO PRODUCT: smallest element: " + str(tl.min(khatri_rao_product)) + " biggest element: " + str(tl.max(khatri_rao_product)))
+                    #print("APPROXIMATED X: smallest element: " + str(tl.min(approximated_X_unfolded_n)) + " biggest element: " + str(tl.max(approximated_X_unfolded_n)))
+                    #for index, A_n in enumerate(A_ns):
+                    #    print("A_ns["+str(index)+"]: smallest element: " + str(tl.min(A_n)) + " biggest element: " + str(tl.max(A_n)) + ", average: " + str(tl.mean(A_n)))
                     print("\n")
                     break
                 
