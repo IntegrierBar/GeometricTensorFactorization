@@ -1,82 +1,17 @@
 """
 This python file contains all code for multiplicative non-negative tensor factorization.
 The main function you want to use is 'multiplicative_tesnor_factorization'. It calculates the tensor factoriazation.
-To get the original tensor back use 'defactorizing_PTF'
+To get the original tensor back use 'defactorizing_CP' from utils.
 """
 
 
 import time
 import tensorly as tl
-import numpy as np
 import math
 
 from copy import deepcopy
 
-# This version is deprecated as the one below is twice as fast
-def defactorizing_CP_old(A_js, F, N, X_shape):
-    """
-    This function calculates the tensor X from the A_js
-    
-    Args:
-      A_js: list of N matrizes that factorize X
-      F: The order of the apporximation
-      N: the dimension of X
-      X_shape: the shape of X
-    
-    Returns:
-      X 
-    """
-    
-    X = tl.zeros(X_shape)
-    for a in range(F):
-        tensors = []
-        for j in range(N):
-            tensors.append(A_js[j][:, a])
-        X += tl.tenalg.outer(tensors)
-
-    return X
-
-
-def defactorizing_CP(A_js, X_shape):
-    """
-    This function calculates the tensor X from the A_js
-    
-    Args:
-      A_js: list of N matrizes that factorize X
-      X_shape: the shape of X
-    
-    Returns:
-      X 
-    """
-    # calculated X_(0) (mode 0 matricization) using the formula from Kolda and then folds the tensor back up
-    X_unfolded_0 = tl.matmul(A_js[0], tl.transpose(tl.tenalg.khatri_rao(A_js, skip_matrix=0)) )
-    return tl.fold(X_unfolded_0, 0, X_shape)
-
-
-# this does the same as tl.tenalg.khatri_rao(A_js, skip_matrix=j) and is thus now deprecated
-def multiply_varying_matrices(A_list):
-    """
-    This function multiplies matrices in a list with different first dimensions.
-    
-    Args:
-      A_list: A list of numpy arrays representing the matrices A^(j).
-    
-    Returns:
-      A numpy array representing the resulting matrix M.
-    """
-    a = A_list[0].shape[1]  # Assuming all matrices have the same second dimension 'a'
-    total_rows = np.prod([matrix.shape[0] for matrix in A_list])  # Total rows in M
-
-    # Create an index mapping for efficient multiplication
-    all_shapes = [matrix.shape[0] for matrix in A_list]
-    index_map = np.ndindex(*all_shapes)  # More efficient index generation
-    # Iterate through each element in the resulting matrix and perform multiplication
-    M = np.ones((total_rows, a))
-    for i, indices in enumerate(index_map):
-        #print(indices)
-        for j, index in enumerate(indices):
-            M[i] *= A_list[j][index]
-    return M
+from .utils import defactorizing_CP
 
 
 
@@ -264,41 +199,3 @@ def tensor_factorization_cp_multiplicative_poisson(X, F, error=1e-6, max_iter=50
     if detailed:
         return A_ns, RE, approximated_X
     return A_ns
-
-
-
-
-
-
-
-def convert_diag_tucker_to_cp(G, A_ns):
-    """convert a diagonal tucker decomposition to a CP decomposition by getting the diagonal matrix D and multiplying it with A_0
-
-    Args:
-        G (tensor): The diagonal core. Has to be diagonal to work.
-        A_ns (list of matrices): The factors. Have to be mutable!
-
-    Returns:
-        A_ns : The factors are now a CP decomposition
-    """
-    A_ns[0] = tl.matmul(A_ns[0], tl.diag(get_diagonal(G)))
-    return A_ns
-    
-    
-
-
-def get_diagonal(arr):
-  """Extracts the diagonal elements from an n-dimensional array.
-
-  Args:
-    arr: The input n-dimensional NumPy array.
-
-  Returns:
-    A 1D NumPy array containing the diagonal elements.
-  """
-
-  # Reduce the array to a 2D array by summing over all but the first two axes
-  reduced_arr = np.sum(arr, axis=tuple(range(2, arr.ndim)))
-
-  # Extract the diagonal of the reduced 2D array
-  return np.diagonal(reduced_arr)

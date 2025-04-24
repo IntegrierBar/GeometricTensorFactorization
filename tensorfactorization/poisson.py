@@ -5,41 +5,12 @@ This python file contains the algorithm for Poisson Family special case
 
 import time
 import tensorly as tl
-import numpy as np
-import torch
 import math
-from .multiplicative import defactorizing_CP
+from .utils import defactorizing_CP, is_tensor_not_finite, poisson_error
 
 from copy import deepcopy
 
 import warnings
-
-
-def is_tensor_not_finite(tensor):
-    """
-    Checks if the tensor contains some non-finite elements, i.e. not inf or nan
-    Returns true if it finds any non-finite elements and returns false if all elements are finite
-    can use both numpy and pytorch tensor
-
-    Is using in the tensor_factorization_cp_poisson function inside the step size calculation to make sure the gradient is finite
-    """
-    if tl.get_backend() == 'pytorch':
-        return torch.any(~torch.isfinite(tensor))
-    if tl.get_backend() == 'numpy':
-        return np.any(~np.isfinite(tensor))
-    else: # default to using numpy by first casting the array to numpy
-        return np.any(~np.isfinite(np.array(tensor)))
-    
-
-def poisson_error(X_unfolded_n, M_unfolded_n):
-    """
-    Calculates the Poisson error given a tensor X and an approximation M. Using both as unfolded n
-    
-    Args:
-        X_unfolded_n: The tensor X unfolded at dimension n
-        M_unfolded_n: The approximation M unfolded at dimension n
-    """
-    return tl.sum( M_unfolded_n - X_unfolded_n * tl.log(M_unfolded_n))
 
 
 
