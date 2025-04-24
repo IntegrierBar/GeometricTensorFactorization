@@ -13,6 +13,11 @@ from copy import deepcopy
 import warnings
 
 
+class BacktrackingWarning(UserWarning):
+    """A special warning for when the backtracking fails."""
+    pass
+
+
 
 def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=True, initial_A_ns=None, sigma=0.5, beta=0.5, eps=None):
     """
@@ -138,7 +143,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
                 # if we need more than 200 backtracks something is wrong and we give a warning and skip this update
                 n_backtracks += 1
                 if n_backtracks > 200:
-                    warnings.warn("Backtracking did not converge in time so we skip this update.")
+                    warnings.warn("Backtracking did not converge in time so we skip this update.", BacktrackingWarning)
                     print("#### PRINTING ADDITIONAL INFORMATION ####")
                     print("Current iteration: " + str(iteration))
                     print("Current index: " + str(n))
