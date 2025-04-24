@@ -47,6 +47,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
     norm_X = tl.norm(X)
     # initialize A_j with random positive values if it was not given
     if initial_A_ns is None:
+        # TODO change this so it uses the function from utils and check which initialization is best
         A_ns = []
         for i in range(N):
             # we use random.random_tensor as it returns a tensor

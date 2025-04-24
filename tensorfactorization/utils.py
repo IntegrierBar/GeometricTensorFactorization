@@ -69,3 +69,13 @@ def create_initial_data(X, F):
     for n in range(len(A_ns)):
         A_ns[n] = A_ns[n] * scaling
     return A_ns
+
+
+def random_cp_with_noise(dimensions, F, noise_scaling=0.1, context={}):
+    """
+    Create a random CP tensor with some added noise
+    """
+    true_solution = tl.random.random_cp(dimensions, F, full=True, **context)
+    noise = tl.random.random_tensor(dimensions, **context) * noise_scaling * tl.max(true_solution)
+    X = true_solution + noise
+    return X
