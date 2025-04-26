@@ -210,6 +210,19 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
                 print("function_value_at_iteration = " + str(function_value_at_iteration))
                 print("norm_of_rg = " + str(norm_of_rg))
                 print("biggest Element of X/M = " + str(tl.max(tl.abs(tl.base.unfold(X, n) / approximated_X_unfolded_n))))
+                print("\nPrinting additional tensor information")
+                tensors_to_print = {
+                    "TENSOR" : X,
+                    "GRADIENT" : gradient_at_iteration,
+                    "NEXT ITERATE" : next_iterate,
+                    "KHATRI RAO PRODUCT" : khatri_rao_product,
+                    "APPROXIMATED X" : approximated_X_unfolded_n,
+                }
+                for index, A_n in enumerate(A_ns):
+                    tensors_to_print["A_ns["+str(index)+"]"] = A_n
+                    
+                for name, tensor_to_print in tensors_to_print.items():
+                    print(name + ": smallest: " + str(tl.min(tensor_to_print)) + ", biggest: " + str(tl.max(tensor_to_print)) + ", average: " + str(tl.mean(tensor_to_print)))
                 #print("gradiend_at_iteration = ")
                 #print(gradient_at_iteration)
                 #print("riemannian_gradient_at_iteration = ")

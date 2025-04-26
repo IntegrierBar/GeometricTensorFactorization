@@ -1,5 +1,6 @@
 """
 This file contains the functions to evalute algorithms and generate convergence plots for both real and generated data.
+Due to relative imports we can only call this script from top level.
 """
 
 import tensorly as tl
@@ -17,8 +18,8 @@ from .constants import (
     error_label, iteration_label, tensor_dimension_label, time_label,
     xscale_convergence_data, xscale_convergence, yscale_convergence
 ) 
-from ..tensorfactorization.utils import (create_initial_data, defactorizing_CP, random_cp_with_noise)
-from ..data.data_imports import (load_indian_pines)
+from tensorfactorization.utils import (create_initial_data, defactorizing_CP, random_cp_with_noise)
+from data.data_imports import (load_indian_pines)
 
 
 # Which tensordata is usable:
@@ -87,7 +88,7 @@ def evaluate_algorithms(factorizers: List[Factorizer], context={"dtype": tl.floa
         norm_of_tensor = random.uniform(1.0, 500.0) # get a random norm for our tensor
         noise_scaling = max(0, random.uniform(-0.05, 0.2))
         
-        print("Dimension of tensor: " + str(dimension) + ", noise: " + str(noise_scaling) + ", F: " + str(F) + ", norm: " + str(norm_of_tensor))
+        print(f"Dimension of tensor: {dimension}, noise: {noise_scaling}, F: {F}, norm: {norm_of_tensor}")
         
         tensor = random_cp_with_noise(dimension, F, noise_scaling=0.0, context=context) # make it have no noise
         tensor = tensor * norm_of_tensor / tl.norm(tensor) # rescale the tensor
@@ -99,7 +100,7 @@ def evaluate_algorithms(factorizers: List[Factorizer], context={"dtype": tl.floa
             iteration_result = factorzer.factorize_cp(tensor, F, initial_A_ns)
             reconstruction = defactorizing_CP(iteration_result.A_ns, tensor.shape)
             
-            print(factorzer.label + " converged in " + str(iteration_result.calculation_time) + "seconds and " + str(len(iteration_result.reconstruction_errors)) + " iterations")
+            print(f"{factorzer.label} converged in {iteration_result.calculation_time:.3f} seconds and {len(iteration_result.reconstruction_errors)} iterations")
             
             plt.plot(iteration_result.reconstruction_errors, color=factorzer.color, label=factorzer.label, linestyle=factorzer.linestyle)
             
@@ -130,7 +131,7 @@ def evaluate_algorithms(factorizers: List[Factorizer], context={"dtype": tl.floa
         iteration_result = factorzer.factorize_cp(tensor, F, initial_A_ns)
         reconstruction = defactorizing_CP(iteration_result.A_ns, tensor.shape)
         
-        print(factorzer.label + " converged in " + str(iteration_result.calculation_time) + "seconds and " + str(len(iteration_result.reconstruction_errors)) + " iterations")
+        print(f"{factorzer.label} converged in {iteration_result.calculation_time:.3f} seconds and {len(iteration_result.reconstruction_errors)} iterations")
         
         plt.plot(iteration_result.reconstruction_errors, color=factorzer.color, label=factorzer.label, linestyle=factorzer.linestyle)
     plt.xlabel(iteration_label)
@@ -159,7 +160,7 @@ def evaluate_algorithms(factorizers: List[Factorizer], context={"dtype": tl.floa
         iteration_result = factorzer.factorize_cp(tensor, F, initial_A_ns)
         reconstruction = defactorizing_CP(iteration_result.A_ns, tensor.shape)
         
-        print(factorzer.label + " converged in " + str(iteration_result.calculation_time) + "seconds and " + str(len(iteration_result.reconstruction_errors)) + " iterations")
+        print(f"{factorzer.label} converged in {iteration_result.calculation_time:.3f} seconds and {len(iteration_result.reconstruction_errors)} iterations")
         
         plt.plot(iteration_result.reconstruction_errors, color=factorzer.color, label=factorzer.label, linestyle=factorzer.linestyle)
     plt.xlabel(iteration_label)
@@ -207,7 +208,7 @@ def evaluate_algorithms(factorizers: List[Factorizer], context={"dtype": tl.floa
             iteration_result = factorzer.factorize_cp(tensor, F, initial_A_ns)
             reconstruction = defactorizing_CP(iteration_result.A_ns, tensor.shape)
 
-            print(factorzer.label + " converged in " + str(iteration_result.calculation_time) + " seconds and " + str(len(iteration_result.reconstruction_errors)) + " iterations")
+            print(f"{factorzer.label} converged in {iteration_result.calculation_time:.3f} seconds and {len(iteration_result.reconstruction_errors)} iterations")
             
             axes[axes_index].set_title(factorzer.label)
             axes[axes_index].set_xticks([])

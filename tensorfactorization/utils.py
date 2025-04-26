@@ -64,6 +64,7 @@ def create_initial_data(X, F):
         A_ns.append(tl.random.random_tensor((X_shape[i], F), **tl.context(X)))
        
     # rescale
+    # TODO figure out if we want to scale with max or norm
     norm_approx = tl.norm( defactorizing_CP(A_ns, X.shape) )
     scaling = (tl.norm(X) / norm_approx) ** (1.0/ X.ndim)
     for n in range(len(A_ns)):
