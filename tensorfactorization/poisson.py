@@ -62,9 +62,9 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             raise ValueError("initial A_ns given does not have to correct length")
         for i in range(N):
             if initial_A_ns[i].shape != (X_shape[i], F):
-                raise ValueError("inital A_ns with index " + str(i) + " does not have correct dimension. Should be " + str((X_shape[i], F)) + " but is " + str(initial_A_ns[i].shape))
+                raise ValueError(f"inital A_ns with index{i} does not have correct dimension. Should be {(X_shape[i], F)} but is {initial_A_ns[i].shape}")
             if tl.context(initial_A_ns[i]) != tl.context(X):
-                raise ValueError("inital A_ns with index " + str(i) + " does not have the same context as X. Should be " + str(tl.context(X)) + " but is " + str(tl.context(initial_A_ns[i])))
+                raise ValueError(f"inital A_ns with index {i} does not have the same context as X. Should be {tl.context(X)} but is {tl.context(initial_A_ns[i])}")
         A_ns = deepcopy(initial_A_ns) # use copy since that is how we want to later use it for testing
     # the reconstruction error
     approximated_X = defactorizing_CP(A_ns, X_shape)
@@ -80,7 +80,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
     for iteration in range(max_iter):
         for n in range(N):
             if verbose:
-                print("Current index: " + str(n))
+                print(f"Current index: {n}")
                 
             start = time.time()
             
@@ -125,9 +125,9 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             #print(function_value_at_iteration)
             #m = max(math.ceil(math.log(function_value_at_iteration / (sigma * alpha * norm_of_rg), beta)), m)
             if verbose:
-                print("Initial m = " + str(m))
-                print("Biggest element in -gradient: " + str(tl.max(-gradient_at_iteration)))
-                print("smallest element in -gradient: " + str(tl.min(-gradient_at_iteration)))
+                print(f"Initial m = {m}")
+                print(f"Biggest element in -gradient: {tl.max(-gradient_at_iteration)}")
+                print(f"smallest element in -gradient: {tl.min(-gradient_at_iteration)}")
                 #print(math.log(function_value_at_iteration / (sigma * alpha * norm_of_rg)))
                 #print(math.log(beta))
                 
@@ -351,7 +351,7 @@ def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=5
             step_size = 4.0 * math.pow(khatri_rao_product.shape[0], -1) # fixed step size according to my estimates
             # still need to make sure we donÄt get problem in first iteration so we need to ensure that in the exponent there is nothing bigger then 10!
             largest_element_gradient = -tl.min(gradient_at_iteration)
-            step_size = min(step_size, 10.0 / largest_element_gradient)
+            step_size = min(step_size, 2.0 / largest_element_gradient)
             
             A_ns[n] =  A_ns[n] * tl.exp(-step_size * gradient_at_iteration)
                 

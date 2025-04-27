@@ -4,7 +4,7 @@ This file contains all constants used by the different jupyter notebooks
 
 ##### CONSTANTS ######
 # path to folders for saving data
-folder = 'pictures/'
+picture_folder = 'pictures/'
 data_folder = 'data/'
 
 # global label variables for all plots
