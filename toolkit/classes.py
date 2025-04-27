@@ -66,6 +66,11 @@ class Factorizer:
         """
         return [ir.calculation_time for ir in self.data]
 
+    def get_number_of_iterations(self):
+        """returns a list of the calculation times of all IterationResults in data
+        """
+        return [len(ir.reconstruction_errors)-1 for ir in self.data]
+
     def average_calculation_time(self):
         calc_times = self.get_calculation_times()
         return sum(calc_times)/len(calc_times)

@@ -236,4 +236,29 @@ def evaluate_algorithms(factorizers: List[Factorizer], context={"dtype": tl.floa
         plt.savefig(folder+'image_'+name["name"]+'_convergence.png')
         plt.close(fig)
 
+    # finally we how many iterations and how much time each algorithm took for each tensor
+    # calculation times
+    plt.figure()
+    for factorizer in factorizers:
+        plt.plot(factorizer.get_calculation_times(), color=factorzer.color, label=factorzer.label, linestyle=factorzer.linestyle)
+    plt.legend(title='Algorithms', loc='upper right')
+    plt.title("Calculation Times")
+    plt.savefig(f"{folder}calculation_times.png")
+    plt.close(fig)
+     # calculation times per iteration
+    plt.figure()
+    for factorizer in factorizers:
+        plt.plot(factorizer.get_calculation_times_per_iteration(), color=factorzer.color, label=factorzer.label, linestyle=factorzer.linestyle)
+    plt.legend(title='Algorithms', loc='upper right')
+    plt.title("Calculation Times")
+    plt.savefig(f"{folder}calculation_times_per_iteration.png")
+    plt.close(fig)   
+    # number of iterations
+    plt.figure()
+    for factorizer in factorizers:
+        plt.plot(factorizer.get_number_of_iterations(), color=factorzer.color, label=factorzer.label, linestyle=factorzer.linestyle)
+    plt.legend(title='Algorithms', loc='upper right')
+    plt.title("Calculation Times")
+    plt.savefig(f"{folder}number_of_iterations.png")
+
 # TODO add saving of data

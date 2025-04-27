@@ -272,7 +272,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
 
 
 
-def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=True, initial_A_ns=None):
+def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=True, initial_A_ns=None, eps=None):
     """
     This function uses a multiplicative method to calculate a nonnegative tensor decomposition.
     This time with fixed step size
@@ -293,6 +293,12 @@ def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=5
       approximated_X (optional): final approximation of X
       step_size_modifiers (optional): list of all step-size-modifiers m used during iteration
     """
+    # if no eps was specified, we use the machine epsilon for float32 (smallest number s.t. 1+eps>1)
+    if eps==None:
+        eps = tl.eps(tl.float32)
+    
+    # first of all we clamp X to eps so we do not get problems due to machine precission
+    X[X<eps] = eps
     
     N = X.ndim # get dimension of X
     X_shape = X.shape
@@ -318,12 +324,11 @@ def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=5
         
     RE = [tl.norm(X-approximated_X)/norm_X]
 
-    # lets save the different m as well so that we can run some analysis there
-    step_size_modifiers = []
+    # lets save the different step sizes
+    step_sizes = []
     for i in range(N):
-        step_size_modifiers.append([])
+        step_sizes.append([])
     
-    step_size_modifier = 1.0
     ## MAIN LOOP ##
     for _ in range(max_iter):
         for n in range(N):
@@ -338,34 +343,17 @@ def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=5
                 approximated_X_unfolded_n = tl.matmul(A_ns[n], tl.transpose(khatri_rao_product)) # use the new approximation using the matrizes we just updated
             else:
                 approximated_X_unfolded_n = tl.unfold(approximated_X, n) # use the approximation from the previous iteration step, not using the matrix updates calculated in this iteration
-            # TODO consider changig approximated_X_unfolded_n such that all 0 elements are set to epsilon, i.e.
-            # approximated_X_unfolded_n[approximated_X_unfolded_n==0] = eps
-            # And maybe to the same with X?
+
+            approximated_X_unfolded_n[approximated_X_unfolded_n<eps] = eps
             
-                
-            
-            
-            #f = lambda A: tl.sum( tl.matmul(A, tl.transpose(khatri_rao_product)) - tl.base.unfold(X, n) * tl.log( tl.matmul(A, tl.transpose(khatri_rao_product)) ))  # lambda for function we actually want to minimize
-            #function_value_at_iteration = tl.sum(approximated_X_unfolded_n - tl.base.unfold(X, n) * tl.log(approximated_X_unfolded_n)) 
             gradient_at_iteration = tl.matmul(tl.ones(approximated_X_unfolded_n.shape, **tl.context(X)) - (tl.base.unfold(X, n) / approximated_X_unfolded_n) , khatri_rao_product )
-            riemanndian_gradient_at_iteration = A_ns[n] * gradient_at_iteration # The "A_ns[n] *" is the inverse of the Riemannian metric tensor matrix applied to the gradient, i.e. G(A)^{-1} (\nabla f)
-            norm_of_rg = tl.sum(gradient_at_iteration * riemanndian_gradient_at_iteration) # TODO maybe check if this is correct! But it should be since we calculate the Riemmannian norm of the Riemannian gradient as \| grad f \|_g = (G^{-1} \nabla f)^T G G^{-1} \nabla f = \nabla f^T grad f
-            
             
             step_size = 4.0 * math.pow(khatri_rao_product.shape[0], -1) # fixed step size according to my estimates
             # still need to make sure we donÄt get problem in first iteration so we need to ensure that in the exponent there is nothing bigger then 10!
             largest_element_gradient = -tl.min(gradient_at_iteration)
-            step_size = min(step_size, 2.0 / largest_element_gradient)
-            step_size_modifier = min(step_size_modifier + 0.5, 3.0)
+            step_size = min(step_size, 10.0 / largest_element_gradient)
             
-            next_iterate =  A_ns[n] * tl.exp(-step_size * gradient_at_iteration)
-            if verbose:
-                print("Time from start to calculate gradients and first next iterate: " + str(time.time() - start))
-            # if Armijo step size condition is not fullfilled, try again with smaller step size. Thanks to math, this is while loop will eventually finish
-            #if is_tensor_not_finite(next_iterate) or ( function_value_at_iteration - 0.1 * step_size * norm_of_rg < f(next_iterate) ):
-            #    # TODO: instead of recalculating like this, we can also use (for beta=0.5) that exp(beta * stuff) = [exp(stuff)]^beta and if beta=0.5 this is just sqrt which is 3 times faster
-            #    print("step size too big")
-                
+            A_ns[n] =  A_ns[n] * tl.exp(-step_size * gradient_at_iteration)
                 
             if verbose:
                 print("Time from start until end of step size calculation: " + str(time.time() - start))
@@ -379,12 +367,7 @@ def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=5
                 print("Shape of approximated_X_unfolded_n: " + str(approximated_X_unfolded_n.shape))
                 print("Shape of khatri Rao product: " + str(khatri_rao_product.shape))
             
-            step_size_modifiers[n].append(step_size) # save the value of m for later inspection
-            # finally update A_n
-            A_ns[n] = next_iterate
-            # OLD CODE, kept for safety, but can be deleted
-            # regular * does componentwise multiplication
-            #A_ns[n] = A_ns[n] * tl.exp(-step_size * tl.matmul(tl.ones(approximated_X_unfolded_n.shape) - (tl.base.unfold(X, n) / approximated_X_unfolded_n) , khatri_rao_product )  ) 
+            step_sizes[n].append(step_size) # save the value of m for later inspection
             
             end = time.time()
             if verbose:
@@ -392,7 +375,7 @@ def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=5
                 #print("New objective function value: " + str(f(A_ns[n]))) # TODO fix the prints here
 
                 #print("function_value_at_iteration = " + str(function_value_at_iteration))
-                print("norm_of_rg = " + str(norm_of_rg))
+                #print("norm_of_rg = " + str(norm_of_rg))
                 print("biggest Element of X/M = " + str(tl.max(tl.abs(tl.base.unfold(X, n) / approximated_X_unfolded_n))))
                 #print("gradiend_at_iteration = ")
                 #print(gradient_at_iteration)
@@ -438,5 +421,5 @@ def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=5
     """
 
     if detailed:
-        return A_ns, RE, approximated_X, step_size_modifiers
+        return A_ns, RE, approximated_X, step_sizes
     return A_ns
