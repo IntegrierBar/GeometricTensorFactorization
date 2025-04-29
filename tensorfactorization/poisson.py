@@ -348,10 +348,10 @@ def tensor_factorization_cp_poisson_fixed_step_size(X, F, error=1e-6, max_iter=5
             
             gradient_at_iteration = tl.matmul(tl.ones(approximated_X_unfolded_n.shape, **tl.context(X)) - (tl.base.unfold(X, n) / approximated_X_unfolded_n) , khatri_rao_product )
             
-            step_size = 4.0 * math.pow(khatri_rao_product.shape[0], -1) # fixed step size according to my estimates
-            # still need to make sure we donÄt get problem in first iteration so we need to ensure that in the exponent there is nothing bigger then 10!
+            step_size = 1.0 * math.pow(khatri_rao_product.shape[0], -1) # fixed step size according to my estimates
+            # still need to make sure we don't get problem in first iteration so we need to ensure that in the exponent there is nothing bigger then 3, since e^3=20 should be enough!
             largest_element_gradient = -tl.min(gradient_at_iteration)
-            step_size = min(step_size, 2.0 / largest_element_gradient)
+            step_size = min(step_size, 3.0 / largest_element_gradient)
             
             A_ns[n] =  A_ns[n] * tl.exp(-step_size * gradient_at_iteration)
                 

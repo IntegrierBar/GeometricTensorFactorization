@@ -49,7 +49,7 @@ def evaluate_on_random(factorizers: List[Factorizer], context={"dtype": tl.float
         
         print(f"Dimension of tensor: {dimension}, noise: {noise_scaling}, F: {F}, norm: {norm_of_tensor}")
         
-        tensor = random_cp_with_noise(dimension, F, noise_scaling=0.0, context=context) # make it have no noise
+        tensor = random_cp_with_noise(dimension, F, noise_scaling=noise_scaling, context=context) # make it have no noise
         tensor = tensor * norm_of_tensor / tl.norm(tensor) # rescale the tensor
         # generate initial A_ns
         initial_A_ns = create_initial_data(tensor, F)
@@ -176,7 +176,7 @@ def evaluate_on_images(factorizers: List[Factorizer], context={"dtype": tl.float
     """
     # iterate over all images, use all factorizers. Display the approximations and the convergence lines
     for name in image_names:
-        print(f"\nFactorizing image {name["name"]} with F = {name["F"]}")
+        print(f"\nFactorizing image {name['name']} with F = {name['F']}")
         # get the image
         caller = getattr(data, name["name"])
         image = caller()
@@ -220,7 +220,7 @@ def evaluate_on_images(factorizers: List[Factorizer], context={"dtype": tl.float
             plt.plot(iteration_result.reconstruction_errors, color=factorizer.color, label=factorizer.label, linestyle=factorizer.linestyle)
 
         #fig.show()
-        fig.savefig(f"{picture_folder}image_{name["name"]}_reconstruction.png", bbox_inches='tight')
+        fig.savefig(f"{picture_folder}image_{name['name']}_reconstruction.png", bbox_inches='tight')
 
         plt.xlabel(iteration_label)
         plt.ylabel(error_label)
@@ -230,9 +230,9 @@ def evaluate_on_images(factorizers: List[Factorizer], context={"dtype": tl.float
         plt.xscale(**xscale_convergence_data)
         plt.xlim(left=0)
         plt.legend(title='Algorithms', loc='upper right')
-        plt.title(f"{name["name"]} with F = {name["F"]}")
+        plt.title(f"{name['name']} with F = {name['F']}")
         #plt.show()
-        plt.savefig(f"{picture_folder}image_{name["name"]}_convergence.png")
+        plt.savefig(f"{picture_folder}image_{name['name']}_convergence.png")
         plt.close(fig)
 
 
@@ -252,14 +252,14 @@ def plot_calculation_times_and_niter(factorizers: List[Factorizer]):
     for factorizer in factorizers:
         plt.plot(factorizer.get_calculation_times_per_iteration(), color=factorizer.color, label=factorizer.label, linestyle=factorizer.linestyle)
     plt.legend(title='Algorithms', loc='upper right')
-    plt.title("Calculation Times")
+    plt.title("Calculation Times Per Iteration")
     plt.savefig(f"{picture_folder}calculation_times_per_iteration.png")
     # number of iterations
     plt.figure()
     for factorizer in factorizers:
         plt.plot(factorizer.get_number_of_iterations(), color=factorizer.color, label=factorizer.label, linestyle=factorizer.linestyle)
     plt.legend(title='Algorithms', loc='upper right')
-    plt.title("Calculation Times")
+    plt.title("Number of Iterations")
     plt.savefig(f"{picture_folder}number_of_iterations.png")
 
 
