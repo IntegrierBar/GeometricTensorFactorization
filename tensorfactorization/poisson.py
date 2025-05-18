@@ -19,7 +19,7 @@ class BacktrackingWarning(UserWarning):
 
 
 
-def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=True, initial_A_ns=None, sigma=0.5, beta=0.5, eps=None):
+def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=False, verbose=False, update_approximation_everytime=True, initial_A_ns=None, alpha=0.5, beta=0.5, sigma=0.5, eps=None):
     """
     This function uses a multiplicative method to calculate a nonnegative tensor decomposition
     
@@ -104,7 +104,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             # TODO these values should be looked at more to determine which are best
             #sigma = 0.5
             #beta = 0.5
-            alpha = 0.5
+            #alpha = 0.5
             
             
             # for now, just use 0.7 of what was used last time
