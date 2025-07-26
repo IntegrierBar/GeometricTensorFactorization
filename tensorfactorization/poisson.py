@@ -75,6 +75,9 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
     step_size_modifiers = []
     for i in range(N):
         step_size_modifiers.append([])
+    
+    # We use this to manualy stop the loop, if the backtracking failed for all matrix factors in one loop
+    failed_to_backtrack = [False] * N
         
     ## MAIN LOOP ##
     for iteration in range(max_iter):
@@ -143,39 +146,41 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
                 # if we need more than 200 backtracks something is wrong and we give a warning and skip this update
                 n_backtracks += 1
                 if n_backtracks > 200:
+                    failed_to_backtrack[n] = True
                     warnings.warn("Backtracking did not converge in time so we skip this update.", BacktrackingWarning)
-                    print("#### PRINTING ADDITIONAL INFORMATION ####")
-                    print("Current iteration: " + str(iteration))
-                    print("Current index: " + str(n))
-                    print("Step Size: " + str(step_size))
-                    print("m: " + str(m))
-                    print("Step size * biggest element of negative gradient: " + str(step_size * tl.max(-gradient_at_iteration)))
-                    print("biggest element in A_n: " + str(tl.max(A_ns[n])))
-                    print("smallest element in A_n: " + str(tl.min(A_ns[n])))
-                    print("Shape of approximated_X_unfolded_n: " + str(approximated_X_unfolded_n.shape))
-                    print("Shape of khatri Rao product: " + str(khatri_rao_product.shape))
-                    print("\nPoisson error of current iteration: " + str(function_value_at_iteration))
-                    print("norm of Riemannian Gradient: " + str(norm_of_rg))
-                    print("poisson error of next iteration: " + str(poisson_error( tl.base.unfold(X, n), tl.matmul(next_iterate, tl.transpose(khatri_rao_product)) )))
-                    print("\nPrinting additional tensor information")
-                    tensors_to_print = {
-                        "TENSOR" : X,
-                        "GRADIENT" : gradient_at_iteration,
-                        "NEXT ITERATE" : next_iterate,
-                        "KHATRI RAO PRODUCT" : khatri_rao_product,
-                        "APPROXIMATED X" : approximated_X_unfolded_n,
-                    }
-                    for index, A_n in enumerate(A_ns):
-                        tensors_to_print["A_ns["+str(index)+"]"] = A_n
-                    
-                    for name, tensor_to_print in tensors_to_print.items():
-                        print(name + ": smallest: " + str(tl.min(tensor_to_print)) + ", biggest: " + str(tl.max(tensor_to_print)) + ", average: " + str(tl.mean(tensor_to_print)))
-                    #print("NEXT ITERATE: smallest element: " + str(tl.min(next_iterate)) + " biggest element: " + str(tl.max(next_iterate)))
-                    #print("KHATRI RAO PRODUCT: smallest element: " + str(tl.min(khatri_rao_product)) + " biggest element: " + str(tl.max(khatri_rao_product)))
-                    #print("APPROXIMATED X: smallest element: " + str(tl.min(approximated_X_unfolded_n)) + " biggest element: " + str(tl.max(approximated_X_unfolded_n)))
-                    #for index, A_n in enumerate(A_ns):
-                    #    print("A_ns["+str(index)+"]: smallest element: " + str(tl.min(A_n)) + " biggest element: " + str(tl.max(A_n)) + ", average: " + str(tl.mean(A_n)))
-                    print("\n")
+                    if verbose:
+                        print("#### PRINTING ADDITIONAL INFORMATION ####")
+                        print("Current iteration: " + str(iteration))
+                        print("Current index: " + str(n))
+                        print("Step Size: " + str(step_size))
+                        print("m: " + str(m))
+                        print("Step size * biggest element of negative gradient: " + str(step_size * tl.max(-gradient_at_iteration)))
+                        print("biggest element in A_n: " + str(tl.max(A_ns[n])))
+                        print("smallest element in A_n: " + str(tl.min(A_ns[n])))
+                        print("Shape of approximated_X_unfolded_n: " + str(approximated_X_unfolded_n.shape))
+                        print("Shape of khatri Rao product: " + str(khatri_rao_product.shape))
+                        print("\nPoisson error of current iteration: " + str(function_value_at_iteration))
+                        print("norm of Riemannian Gradient: " + str(norm_of_rg))
+                        print("poisson error of next iteration: " + str(poisson_error( tl.base.unfold(X, n), tl.matmul(next_iterate, tl.transpose(khatri_rao_product)) )))
+                        print("\nPrinting additional tensor information")
+                        tensors_to_print = {
+                            "TENSOR" : X,
+                            "GRADIENT" : gradient_at_iteration,
+                            "NEXT ITERATE" : next_iterate,
+                            "KHATRI RAO PRODUCT" : khatri_rao_product,
+                            "APPROXIMATED X" : approximated_X_unfolded_n,
+                        }
+                        for index, A_n in enumerate(A_ns):
+                            tensors_to_print["A_ns["+str(index)+"]"] = A_n
+                        
+                        for name, tensor_to_print in tensors_to_print.items():
+                            print(name + ": smallest: " + str(tl.min(tensor_to_print)) + ", biggest: " + str(tl.max(tensor_to_print)) + ", average: " + str(tl.mean(tensor_to_print)))
+                        #print("NEXT ITERATE: smallest element: " + str(tl.min(next_iterate)) + " biggest element: " + str(tl.max(next_iterate)))
+                        #print("KHATRI RAO PRODUCT: smallest element: " + str(tl.min(khatri_rao_product)) + " biggest element: " + str(tl.max(khatri_rao_product)))
+                        #print("APPROXIMATED X: smallest element: " + str(tl.min(approximated_X_unfolded_n)) + " biggest element: " + str(tl.max(approximated_X_unfolded_n)))
+                        #for index, A_n in enumerate(A_ns):
+                        #    print("A_ns["+str(index)+"]: smallest element: " + str(tl.min(A_n)) + " biggest element: " + str(tl.max(A_n)) + ", average: " + str(tl.mean(A_n)))
+                        print("\n")
                     break
                 
                 m += 1
@@ -184,6 +189,7 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
             # if the backtracking did not converge we skip the update
             if n_backtracks > 200:
                 continue
+            failed_to_backtrack[n] = False # since we reached here, the backtracking worked
             
             if verbose:
                 print("Time from start until end of step size calculation: " + str(time.time() - start))
@@ -245,6 +251,11 @@ def tensor_factorization_cp_poisson(X, F, error=1e-6, max_iter=500, detailed=Fal
         
         # check if we have converged
         if abs(RE[-1] - RE[-2]) < error:
+            break
+        
+        # if we had one round of backtracking not working, we abort the loop
+        if all(failed_to_backtrack):
+            warnings.warn("Backtracking has broken down, so we stop iterations", BacktrackingWarning)
             break
 
     # TODO I think we can skip this for now

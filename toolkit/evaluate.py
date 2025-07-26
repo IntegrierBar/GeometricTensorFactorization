@@ -100,7 +100,7 @@ def evaluate_on_data(factorizers: List[Factorizer], context={"dtype": tl.float64
     data_tensors.append({
         "name" : "indian_pines",
         "tensor" : tensor_indian_pines,
-        "F" : 4
+        "F" : 6
     })
 
     vaccine_data = np.load("data/vaccine_tensor.npy")
@@ -145,17 +145,17 @@ def evaluate_on_data(factorizers: List[Factorizer], context={"dtype": tl.float64
 # all color images from skimage.data sorted by size
 default_F = 3
 image_names = [
-    {"name": 'colorwheel', "F": default_F}, # (370, 371, 3)
-    {"name": 'cat', "F": 4}, # (300, 451, 3)
-    {"name": 'coffee', "F": 4}, # (400, 600, 3)
-    {"name": 'astronaut', "F": 5}, # (512, 512, 3)
-    {"name": 'immunohistochemistry', "F": 5}, # (512, 512, 3)
+    {"name": 'colorwheel', "F": 5}, # (370, 371, 3)
+    {"name": 'cat', "F": 6}, # (300, 451, 3)
+    {"name": 'coffee', "F": 6}, # (400, 600, 3)
+    {"name": 'astronaut', "F": 9}, # (512, 512, 3)
+    {"name": 'immunohistochemistry', "F": 6}, # (512, 512, 3)
     {"name": 'rocket', "F": 4}, # (427, 640, 3)
-    {"name": 'logo', "F": 4}, # (500, 500, 4)
-    {"name": 'hubble_deep_field', "F": 5}, # (872, 1000, 3)
+    {"name": 'logo', "F": 6}, # (500, 500, 4)
+    {"name": 'hubble_deep_field', "F": 6}, # (872, 1000, 3)
 #    {"name": 'skin', "F": default_F}, # (960, 1280, 3)
 #    {"name": 'lily', "F": default_F}, # (922, 922, 4)
-    {"name": 'retina', "F": 5}, # (1411, 1411, 3)
+    {"name": 'retina', "F": 6}, # (1411, 1411, 3)
 ]
 
 def to_image(tensor):
