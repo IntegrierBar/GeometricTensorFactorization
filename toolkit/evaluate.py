@@ -12,7 +12,7 @@ from typing import List
 
 from skimage import data
 
-from .classes import (Factorizer)
+from .classes import (Factorizer, IterationResult)
 from .constants import (
     picture_folder, data_folder,
     error_label, iteration_label, tensor_dimension_label, time_label,
@@ -103,13 +103,10 @@ def evaluate_on_data(factorizers: List[Factorizer], context={"dtype": tl.float64
         "F" : 6
     })
 
+    # TODO consider removing vaccine data, since it does not work well
     vaccine_data = np.load("data/vaccine_tensor.npy")
     tensor_vaccine = tl.tensor(vaccine_data, **context)
-    data_tensors.append({
-        "name" : "vaccine",
-        "tensor" : tensor_vaccine,
-        "F" : 4
-    })
+    #data_tensors.append({ "name" : "vaccine", "tensor" : tensor_vaccine, "F" : 4 })
 
     for data_tensor in data_tensors:
         name = data_tensor["name"]
@@ -153,17 +150,21 @@ image_names = [
     {"name": 'rocket', "F": 4}, # (427, 640, 3)
     {"name": 'logo', "F": 6}, # (500, 500, 4)
     {"name": 'hubble_deep_field', "F": 6}, # (872, 1000, 3)
-#    {"name": 'skin', "F": default_F}, # (960, 1280, 3)
-#    {"name": 'lily', "F": default_F}, # (922, 922, 4)
     {"name": 'retina', "F": 6}, # (1411, 1411, 3)
 ]
 
-def to_image(tensor):
+# TODO: I might want to change this to clamp instead of dividing by max
+def to_image(tensor, clamp=False):
     """A convenience function to convert from a float dtype back to uint8"""
     im = tl.to_numpy(tensor)
-    im -= im.min()
-    im /= im.max()
-    im *= 255
+    if clamp:
+        #im = np.clip(im, 0, 255)
+        im /= im.max()
+        im *= 255
+    else:
+        im -= im.min()
+        im /= im.max()
+        im *= 255
     return im.astype(np.uint8)
 
 def evaluate_on_images(factorizers: List[Factorizer], context={"dtype": tl.float64}):
@@ -207,6 +208,9 @@ def evaluate_on_images(factorizers: List[Factorizer], context={"dtype": tl.float
             iteration_result = factorizer.factorize_cp(tensor, F, initial_A_ns)
             reconstruction = defactorizing_CP(iteration_result.A_ns, tensor.shape)
 
+            # Show the individual components of the reconstruction
+            show_individual_components(tensor, name['name'], factorizer_name=factorizer.label, J=F, result=iteration_result)
+
             print(f"{factorizer.label} converged in {iteration_result.calculation_time:.3f} seconds and {len(iteration_result.reconstruction_errors)} iterations")
             
             axes[axes_index].set_title(factorizer.label)
@@ -230,10 +234,34 @@ def evaluate_on_images(factorizers: List[Factorizer], context={"dtype": tl.float
         plt.xscale(**xscale_convergence_data)
         plt.xlim(left=0)
         plt.legend(title='Algorithms', loc='upper right')
-        plt.title(f"{name['name']} with F = {name['F']}")
+        plt.title(f"{name['name']}")
         #plt.show()
         plt.savefig(f"{picture_folder}image_{name['name']}_convergence.png")
         plt.close(fig)
+
+        
+def show_individual_components(tensor: tl.tensor, tensor_name: str, factorizer_name: str, J: int, result: IterationResult):
+    fig, axes = plt.subplots(nrows=1, ncols=J+2, figsize=(20,20))
+    axes[0].set_title("Original")
+    axes[0].set_axis_off()
+    axes[0].imshow(to_image(tensor))
+
+    axes[1].set_title(factorizer_name)
+    axes[1].set_axis_off()
+    axes[1].imshow(to_image(defactorizing_CP(result.A_ns, tensor.shape)))
+
+    for index in range(2,J+2):
+        columns = []
+        for A_n in result.A_ns:
+            columns.append(A_n[:,index-2])
+        rank1_tensor = tl.tenalg.outer(columns)
+        axes[index].set_title(f"Component {index-1}")
+        axes[index].set_xticks([])
+        axes[index].set_yticks([])
+        axes[index].imshow(to_image(rank1_tensor, clamp=True))
+    
+    fig.savefig(f"{picture_folder}image_{tensor_name}_{factorizer_name}_individual_factors.png", bbox_inches='tight')
+    plt.close(fig)
 
 
 def plot_calculation_times_and_niter(factorizers: List[Factorizer]):
@@ -264,6 +292,7 @@ def plot_calculation_times_and_niter(factorizers: List[Factorizer]):
 
 
 
+## Deprecated Use the individual once instead
 def evaluate_algorithms(factorizers: List[Factorizer], context={"dtype": tl.float64}):
     """
     Evalue the alogirhtm factorization_algorithm on actual data.
