@@ -41,6 +41,7 @@ class Factorizer:
     """
     label: str
     algorithm: Callable # input tensor, int and initial_A_ns, output IterationResult
+    max_iter_default: int = 2000 # default value of max_iter if none was given
     #args: List = field(default_factory=list)
     color: str = 'red'
     linestyle: str = 'solid'
@@ -51,10 +52,12 @@ class Factorizer:
     #    if not self.args:
     #        self.args = [self.label]
 
-    def factorize_cp(self, tensor, F, initial_A_ns) -> IterationResult:
+    def factorize_cp(self, tensor, F, initial_A_ns, max_iter=None) -> IterationResult:
         """ Runs the algorithm and saves the result and returns it as well
         """
-        result = self.algorithm(tensor, F, initial_A_ns)
+        if max_iter == None:
+            max_iter = self.max_iter_default
+        result = self.algorithm(tensor, F, initial_A_ns, max_iter)
         self.add_data(result)
         return result
     

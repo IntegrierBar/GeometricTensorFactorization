@@ -8,7 +8,7 @@ picture_folder = 'pictures/'
 data_folder = 'data/'
 
 # global label variables for all plots
-error_label = 'Error'
+error_label = 'Relative Reconstruction Error'
 iteration_label = 'Iteration'
 tensor_dimension_label = 'Tensor Dimension'
 time_label = 'Time in Seconds'
