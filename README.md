@@ -1,3 +1,3 @@
 # Tensor factorization with geometric methods
 
-TODO write something?
+Optimization algorithms can be found in [tensorfactorization](tensorfactorization/)
